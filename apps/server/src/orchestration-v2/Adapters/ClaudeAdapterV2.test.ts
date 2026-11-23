@@ -12208,6 +12208,57 @@ describe("ClaudeAdapterV2 background wake turns", () => {
       ),
   );
 
+  it.effect("moves a Full access query back to bypass when Claude starts it in default", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeWakeHarness;
+      const turnInput = {
+        threadId: harness.threadId,
+        providerThread: harness.providerThread,
+        now: yield* DateTime.now,
+        attachments: [],
+        modelSelection: {
+          instanceId: ClaudeAdapterV2.CLAUDE_DEFAULT_INSTANCE_ID,
+          model: "claude-haiku-4-5-20251001",
+        },
+        runtimePolicy: CLAUDE_TEST_RUNTIME_POLICY,
+      };
+      yield* harness.runtime.startTurn(
+        makeClaudeTestTurnInput({
+          ...turnInput,
+          attemptId: RunAttemptId.make("attempt-claude-forced-default-1"),
+          text: "Hello.",
+        }),
+      );
+      const openedOptions = harness.getOpenedOptions();
+      assert.equal(openedOptions?.permissionMode, "bypassPermissions");
+      assert.equal(openedOptions?.allowDangerouslySkipPermissions, true);
+      // CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 makes the CLI ignore --permission-mode and start in default.
+      yield* harness.offerAndWait(claudeSdkFrame({ ...wakeTurnInit, permissionMode: "default" }));
+      yield* Queue.offer(harness.sdkMessages, turnOneResult);
+      yield* Queue.take(harness.terminalReceipts);
+
+      yield* harness.runtime.startTurn(
+        makeClaudeTestTurnInput({
+          ...turnInput,
+          attemptId: RunAttemptId.make("attempt-claude-forced-default-2"),
+          providerTurnOrdinal: 2,
+          text: "Continue.",
+        }),
+      );
+      assert.strictEqual(harness.getOpenedOptions(), openedOptions);
+      assert.deepEqual(harness.permissionModeChanges, ["bypassPermissions"]);
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          IdAllocator.layer,
+          McpProviderSessions.layer,
+          NodeServices.layer,
+          NodeCrypto.layer,
+        ),
+      ),
+    ),
+  );
+
   it.effect("preserves typed Claude plans and todos through generic tool completion", () =>
     Effect.gen(function* () {
       const harness = yield* makeWakeHarness;
