@@ -75,8 +75,10 @@ Servers hosted under a URL subpath, such as `https://example.com/forgejo`, use `
 fj does not preserve the subpath when checking its account.
 
 When cloning or publishing, use a full repository URL to select a specific server.
-You can use `owner/repo` when only one server is configured in fj, or in `gt` when fj is
-unavailable or unconfigured. With multiple servers, use the full URL.
+You can use `owner/repo` when only one server is configured in fj. When fj is unavailable or
+unconfigured, `owner/repo` and newly published repositories go to gt's default server, which
+`gt config set default_host https://your-server` changes. With multiple fj servers, use the
+full URL.
 If you have multiple `gt` accounts on one server, select one with
 `gt auth switch <user> --host https://your-server`. If your SSH remote uses a different host
 name than the server's web address, tell `gt` with
